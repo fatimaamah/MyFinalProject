@@ -1,0 +1,49 @@
+<div class="sidebar" style="width: 250px;">
+  <div class="p-4">
+    <h5 class="text-center mb-4">
+      <i class="bi bi-journal-text"></i>
+      Dashboard
+    </h5>
+  </div>
+  <nav class="nav flex-column">
+    <% if (user.role === 'general_admin') { %>
+      <a class="nav-link" href="/admin/dashboard">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+      </a>
+      <a class="nav-link" href="/admin/add-coordinator">
+        <i class="bi bi-person-plus me-2"></i>Add Coordinator
+      </a>
+      <a class="nav-link" href="/admin/activity-logs">
+        <i class="bi bi-clock-history me-2"></i>Activity Logs
+      </a>
+    <% } else if (user.role === 'level_coordinator') { %>
+      <a class="nav-link" href="/coordinator/dashboard">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+      </a>
+      <a class="nav-link" href="/coordinator/progress-overview">
+        <i class="bi bi-graph-up me-2"></i>Progress Overview
+      </a>
+    <% } else if (user.role === 'hod') { %>
+      <a class="nav-link" href="/hod/dashboard">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+      </a>
+      <a class="nav-link" href="/hod/students">
+        <i class="bi bi-people me-2"></i>Students
+      </a>
+      <a class="nav-link" href="/hod/reports">
+        <i class="bi bi-file-earmark-text me-2"></i>Reports
+      </a>
+    <% } else if (user.role === 'supervisor') { %>
+      <a class="nav-link" href="/supervisor/dashboard">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+      </a>
+    <% } else if (user.role === 'student') { %>
+      <a class="nav-link" href="/student/dashboard">
+        <i class="bi bi-speedometer2 me-2"></i>Dashboard
+      </a>
+      <a class="nav-link" href="/student/upload-report">
+        <i class="bi bi-cloud-upload me-2"></i>Upload Report
+      </a>
+    <% } %>
+  </nav>
+</div>

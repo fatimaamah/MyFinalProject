@@ -1,0 +1,95 @@
+<%
+  const title = 'Admin Dashboard';
+  const body = `
+    <div class="row mb-4">
+      <div class="col-12">
+        <h2><i class="bi bi-speedometer2 me-2"></i>General Admin Dashboard</h2>
+        <p class="text-muted">Manage level coordinators and oversee the entire system</p>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+          <div class="card-body">
+            <h3 class="card-title">${stats.coordinators}</h3>
+            <p class="card-text">Level Coordinators</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+          <div class="card-body">
+            <h3 class="card-title">${stats.supervisors}</h3>
+            <p class="card-text">Supervisors</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+          <div class="card-body">
+            <h3 class="card-title">${stats.students}</h3>
+            <p class="card-text">Students</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card">
+          <div class="card-body">
+            <h3 class="card-title">${stats.hods}</h3>
+            <p class="card-text">HODs</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-people me-2"></i>Level Coordinators</h5>
+        <a href="/admin/add-coordinator" class="btn btn-primary btn-sm">
+          <i class="bi bi-person-plus me-1"></i>Add Coordinator
+        </a>
+      </div>
+      <div class="card-body">
+        <% if (coordinators && coordinators.length > 0) { %>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Level</th>
+                  <th>Created At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% coordinators.forEach(coordinator => { %>
+                  <tr>
+                    <td><%= coordinator.full_name %></td>
+                    <td><%= coordinator.email %></td>
+                    <td><span class="badge bg-info"><%= coordinator.level %> Level</span></td>
+                    <td><%= new Date(coordinator.created_at).toLocaleDateString() %></td>
+                    <td>
+                      <a href="/admin/edit-coordinator/<%= coordinator.id %>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <form action="/admin/delete-coordinator/<%= coordinator.id %>" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure?')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <p class="text-muted text-center py-4">No level coordinators yet. Add one to get started.</p>
+        <% } %>
+      </div>
+    </div>
+  `;
+%>
+<%- include('../layouts/main', { title, body, user }) %>
