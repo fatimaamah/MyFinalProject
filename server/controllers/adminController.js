@@ -1,8 +1,7 @@
-<<<<<<< HEAD
-// server/controllers/adminController.js
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const renderPage = require('../utils/renderHelper');
+const { logActivity } = require('../utils/logger');
 
 // === ADMIN DASHBOARD ===
 const getDashboard = (req, res) => {
@@ -39,6 +38,7 @@ const getDashboard = (req, res) => {
     });
   }
 };
+
 // === MANAGE USERS PAGE ===
 const getManageUsers = (req, res) => {
   try {
@@ -66,71 +66,75 @@ const getManageUsers = (req, res) => {
 };
 
 // === ADD USER (POST) ===
-const postAddUser = (req, res) => {
-  const { full_name, email, password, role, level, department } = req.body;
+const postAddUser = async (req, res) => {
+  const { full_name, email, password, role, level, department, registration_number } = req.body;
   try {
     const password_hash = bcrypt.hashSync(password, 10);
 
     // Prevent duplicate email
     const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (existing) {
-      return renderPage(res, {
-        title: 'Manage Users',
-        view: '../admin/manage-users',
-        user: req.session.user,
-        error: 'Email already exists.',
-        users: db.prepare('SELECT * FROM users ORDER BY created_at DESC').all()
-      });
+      req.flash('error', 'Email already exists.');
+      return res.redirect('/admin/manage-users');
     }
 
-    db.prepare(`
-      INSERT INTO users (full_name, email, password_hash, role, level, department, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `).run(full_name, email, password_hash, role, level || null, department || 'Computer Science');
+    const result = db.prepare(`
+      INSERT INTO users (full_name, email, password_hash, role, level, department, registration_number, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `).run(full_name, email, password_hash, role, level || null, department || 'Computer Science', registration_number || null);
 
+    // Log the activity
+    await logActivity(
+      req.session.user.id,
+      'Created User',
+      'user',
+      result.lastInsertRowid,
+      { role, email, name: full_name }
+    );
+
+    req.flash('success', `User ${full_name} created successfully!`);
     res.redirect('/admin/manage-users');
   } catch (error) {
     console.error('❌ Error adding user:', error);
-    renderPage(res, {
-      title: 'Error',
-      view: '../error',
-      user: req.session.user,
-      message: 'Failed to add user',
-      error: error.message
-    });
+    req.flash('error', 'Failed to add user');
+    res.redirect('/admin/manage-users');
   }
 };
 
 // === DELETE USER ===
-const deleteUser = (req, res) => {
+const deleteUser = async (req, res) => {
   const { id } = req.params;
   try {
+    const user = db.prepare('SELECT full_name, email FROM users WHERE id = ?').get(id);
+    
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    
+    // Log the activity
+    await logActivity(
+      req.session.user.id,
+      'Deleted User',
+      'user',
+      id,
+      { email: user.email, name: user.full_name }
+    );
+
+    req.flash('success', `User ${user.full_name} deleted successfully!`);
     res.redirect('/admin/manage-users');
   } catch (error) {
     console.error('❌ Error deleting user:', error);
-    renderPage(res, {
-      title: 'Error',
-      view: '../error',
-      user: req.session.user,
-      message: 'Failed to delete user',
-      error: error.message
-    });
+    req.flash('error', 'Failed to delete user');
+    res.redirect('/admin/manage-users');
   }
 };
-// View Students
-// server/controllers/adminController.js
 
 // === VIEW STUDENTS ===
 const getViewStudents = (req, res) => {
   try {
-    // Fetch all students from the database
     const students = db.prepare("SELECT * FROM users WHERE role = 'student' ORDER BY created_at DESC").all();
 
-    // Render the students page using your layout
     renderPage(res, {
       title: 'View Students',
-      view: '../admin/view-students', // relative to layouts/main.ejs
+      view: '../admin/view-students',
       user: req.session.user,
       students
     });
@@ -146,9 +150,7 @@ const getViewStudents = (req, res) => {
   }
 };
 
-
-
-// View Supervisors
+// === VIEW SUPERVISORS ===
 const getViewSupervisors = (req, res) => {
   try {
     const supervisors = db.prepare("SELECT * FROM users WHERE role = 'supervisor' ORDER BY created_at DESC").all();
@@ -159,7 +161,7 @@ const getViewSupervisors = (req, res) => {
       supervisors
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error loading supervisors:', error);
     renderPage(res, {
       title: 'Error',
       view: '../error',
@@ -169,7 +171,6 @@ const getViewSupervisors = (req, res) => {
     });
   }
 };
-
 
 // === ADD COORDINATOR PAGE ===
 const getAddCoordinator = (req, res) => {
@@ -181,7 +182,7 @@ const getAddCoordinator = (req, res) => {
 };
 
 // === ADD COORDINATOR (POST) ===
-const postAddCoordinator = (req, res) => {
+const postAddCoordinator = async (req, res) => {
   const { full_name, email, password, level } = req.body;
   const department = req.session.user?.department || 'Computer Science';
 
@@ -190,29 +191,30 @@ const postAddCoordinator = (req, res) => {
     const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
     if (existing) {
-      return renderPage(res, {
-        title: 'Add Level Coordinator',
-        view: '../admin/add-coordinator',
-        user: req.session.user,
-        error: 'Email already exists. Please use a different email.'
-      });
+      req.flash('error', 'Email already exists. Please use a different email.');
+      return res.redirect('/admin/add-coordinator');
     }
 
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO users (full_name, email, password_hash, role, level, department, created_at, updated_at)
       VALUES (?, ?, ?, 'level_coordinator', ?, ?, datetime('now'), datetime('now'))
     `).run(full_name, email, password_hash, level, department);
 
+    // Log the activity
+    await logActivity(
+      req.session.user.id,
+      'Created Level Coordinator',
+      'user',
+      result.lastInsertRowid,
+      { coordinator_name: full_name, level }
+    );
+
+    req.flash('success', `Coordinator ${full_name} created successfully!`);
     res.redirect('/admin/dashboard');
   } catch (error) {
     console.error('❌ Error adding coordinator:', error);
-    renderPage(res, {
-      title: 'Error',
-      view: '../error',
-      user: req.session.user,
-      message: 'Error adding coordinator',
-      error: error.message
-    });
+    req.flash('error', 'Error adding coordinator');
+    res.redirect('/admin/add-coordinator');
   }
 };
 
@@ -222,13 +224,8 @@ const getEditCoordinator = (req, res) => {
   try {
     const coordinator = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
     if (!coordinator) {
-      return renderPage(res, {
-        title: 'Not Found',
-        view: '../error',
-        message: 'Coordinator not found',
-        error: 'Invalid coordinator ID',
-        user: req.session.user
-      });
+      req.flash('error', 'Coordinator not found');
+      return res.redirect('/admin/dashboard');
     }
 
     renderPage(res, {
@@ -239,56 +236,78 @@ const getEditCoordinator = (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error loading edit coordinator:', error);
-    renderPage(res, {
-      title: 'Error',
-      view: '../error',
-      user: req.session.user,
-      message: 'Failed to load coordinator data',
-      error: error.message
-    });
+    req.flash('error', 'Failed to load coordinator data');
+    res.redirect('/admin/dashboard');
   }
 };
 
 // === UPDATE COORDINATOR ===
-const postEditCoordinator = (req, res) => {
+const postEditCoordinator = async (req, res) => {
   const { id } = req.params;
-  const { full_name, email, level, department } = req.body;
+  const { full_name, email, level, department, password } = req.body;
 
   try {
-    db.prepare(`
+    let updateQuery = `
       UPDATE users
       SET full_name = ?, email = ?, level = ?, department = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(full_name, email, level, department, id);
+    `;
+    let params = [full_name, email, level, department, id];
 
+    // If password is provided, update it too
+    if (password && password.trim() !== '') {
+      const password_hash = bcrypt.hashSync(password, 10);
+      updateQuery = `
+        UPDATE users
+        SET full_name = ?, email = ?, level = ?, department = ?, password_hash = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `;
+      params = [full_name, email, level, department, password_hash, id];
+    }
+
+    db.prepare(updateQuery).run(...params);
+
+    // Log the activity
+    await logActivity(
+      req.session.user.id,
+      'Updated Level Coordinator',
+      'user',
+      id,
+      { coordinator_name: full_name, level }
+    );
+
+    req.flash('success', `Coordinator ${full_name} updated successfully!`);
     res.redirect('/admin/dashboard');
   } catch (error) {
     console.error('❌ Error updating coordinator:', error);
-    renderPage(res, {
-      title: 'Error',
-      view: '../error',
-      user: req.session.user,
-      message: 'Failed to update coordinator',
-      error: error.message
-    });
+    req.flash('error', 'Failed to update coordinator');
+    res.redirect(`/admin/edit-coordinator/${id}`);
   }
 };
 
 // === DELETE COORDINATOR ===
-const deleteCoordinator = (req, res) => {
+const deleteCoordinator = async (req, res) => {
   const { id } = req.params;
   try {
+    const coordinator = db.prepare('SELECT full_name FROM users WHERE id = ?').get(id);
+    
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
+
+    // Log the activity
+    await logActivity(
+      req.session.user.id,
+      'Deleted Level Coordinator',
+      'user',
+      id,
+      { coordinator_name: coordinator.full_name }
+    );
+
+    req.flash('success', `Coordinator ${coordinator.full_name} deleted successfully!`);
     res.redirect('/admin/dashboard');
   } catch (error) {
     console.error('❌ Error deleting coordinator:', error);
-    renderPage(res, {
-      title: 'Error',
-      view: '../error',
-      user: req.session.user,
-      message: 'Failed to delete coordinator',
-      error: error.message
-    });
+    req.flash('error', 'Failed to delete coordinator');
+    res.redirect('/admin/dashboard');
   }
 };
 
@@ -297,10 +316,11 @@ const getActivityLogs = (req, res) => {
   try {
     const logs = db
       .prepare(`
-        SELECT al.*, u.full_name AS user_name
+        SELECT al.*, u.full_name AS user_name, u.role as user_role
         FROM activity_logs al
         LEFT JOIN users u ON u.id = al.user_id
         ORDER BY al.created_at DESC
+        LIMIT 100
       `)
       .all();
 
@@ -321,18 +341,19 @@ const getActivityLogs = (req, res) => {
     });
   }
 };
+
 // === VIEW COORDINATORS ===
 const getViewCoordinators = (req, res) => {
   try {
     const coordinators = db.prepare("SELECT * FROM users WHERE role = 'level_coordinator' ORDER BY created_at DESC").all();
     renderPage(res, {
       title: 'View Coordinators',
-      view: '../admin/view-coordinators', // <-- path to your EJS partial
+      view: '../admin/view-coordinators',
       user: req.session.user,
       coordinators
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error loading coordinators:', error);
     renderPage(res, {
       title: 'Error',
       view: '../error',
@@ -343,19 +364,18 @@ const getViewCoordinators = (req, res) => {
   }
 };
 
-
-// adminController.js
+// === VIEW HODs ===
 const getViewHods = (req, res) => {
   try {
     const hods = db.prepare("SELECT * FROM users WHERE role = 'hod' ORDER BY created_at DESC").all();
     renderPage(res, {
       title: 'View HODs',
-      view: '../admin/view-hods', // <-- path to EJS partial
+      view: '../admin/view-hods',
       user: req.session.user,
       hods
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error loading HODs:', error);
     renderPage(res, {
       title: 'Error',
       view: '../error',
@@ -366,191 +386,19 @@ const getViewHods = (req, res) => {
   }
 };
 
-
 module.exports = {
   getDashboard,
   getManageUsers,
   postAddUser,
   deleteUser,
-=======
-const bcrypt = require('bcryptjs');
-const { supabase } = require('../config/database');
-const { logActivity } = require('../utils/logger');
-
-const getDashboard = async (req, res) => {
-  try {
-    const { data: coordinators } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', 'level_coordinator')
-      .order('created_at', { ascending: false });
-
-    const { data: allUsers } = await supabase
-      .from('users')
-      .select('role');
-
-    const stats = {
-      coordinators: coordinators?.length || 0,
-      students: allUsers?.filter(u => u.role === 'student').length || 0,
-      supervisors: allUsers?.filter(u => u.role === 'supervisor').length || 0,
-      hods: allUsers?.filter(u => u.role === 'hod').length || 0
-    };
-
-    res.render('admin/dashboard', { coordinators, stats });
-  } catch (error) {
-    console.error('Admin dashboard error:', error);
-    res.render('error', { message: 'Failed to load dashboard', error });
-  }
-};
-
-const getAddCoordinator = (req, res) => {
-  res.render('admin/add-coordinator', { error: null });
-};
-
-const postAddCoordinator = async (req, res) => {
-  const { email, password, full_name, level } = req.body;
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const { data: newCoordinator, error } = await supabase
-      .from('users')
-      .insert({
-        email,
-        password_hash: hashedPassword,
-        full_name,
-        role: 'level_coordinator',
-        level
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return res.render('admin/add-coordinator', { error: 'Failed to create coordinator' });
-    }
-
-    await logActivity(req.session.user.id, 'Created Level Coordinator', 'user', newCoordinator.id, {
-      coordinator_name: full_name,
-      level
-    });
-
-    res.redirect('/admin/dashboard');
-  } catch (error) {
-    console.error('Add coordinator error:', error);
-    res.render('admin/add-coordinator', { error: 'An error occurred' });
-  }
-};
-
-const getEditCoordinator = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const { data: coordinator } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', id)
-      .eq('role', 'level_coordinator')
-      .single();
-
-    if (!coordinator) {
-      return res.redirect('/admin/dashboard');
-    }
-
-    res.render('admin/edit-coordinator', { coordinator, error: null });
-  } catch (error) {
-    console.error('Get edit coordinator error:', error);
-    res.redirect('/admin/dashboard');
-  }
-};
-
-const postEditCoordinator = async (req, res) => {
-  const { id } = req.params;
-  const { email, full_name, level, password } = req.body;
-
-  try {
-    const updateData = { email, full_name, level };
-
-    if (password && password.trim() !== '') {
-      updateData.password_hash = await bcrypt.hash(password, 10);
-    }
-
-    const { error } = await supabase
-      .from('users')
-      .update(updateData)
-      .eq('id', id)
-      .eq('role', 'level_coordinator');
-
-    if (error) {
-      const { data: coordinator } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', id)
-        .single();
-      return res.render('admin/edit-coordinator', { coordinator, error: 'Failed to update coordinator' });
-    }
-
-    await logActivity(req.session.user.id, 'Updated Level Coordinator', 'user', id);
-
-    res.redirect('/admin/dashboard');
-  } catch (error) {
-    console.error('Edit coordinator error:', error);
-    res.redirect('/admin/dashboard');
-  }
-};
-
-const deleteCoordinator = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', id)
-      .eq('role', 'level_coordinator');
-
-    if (!error) {
-      await logActivity(req.session.user.id, 'Deleted Level Coordinator', 'user', id);
-    }
-
-    res.redirect('/admin/dashboard');
-  } catch (error) {
-    console.error('Delete coordinator error:', error);
-    res.redirect('/admin/dashboard');
-  }
-};
-
-const getActivityLogs = async (req, res) => {
-  try {
-    const { data: logs } = await supabase
-      .from('activity_logs')
-      .select('*, users(full_name, email)')
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    res.render('admin/activity-logs', { logs });
-  } catch (error) {
-    console.error('Activity logs error:', error);
-    res.render('error', { message: 'Failed to load activity logs', error });
-  }
-};
-
-module.exports = {
-  getDashboard,
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
   getAddCoordinator,
   postAddCoordinator,
   getEditCoordinator,
   postEditCoordinator,
   deleteCoordinator,
-<<<<<<< HEAD
   getActivityLogs,
-  getViewCoordinators,  // ✅ existing
-  getViewHods,          // ✅ existing
-  getViewStudents,      // ✅ new
-  getViewSupervisors    // ✅ new
+  getViewCoordinators,
+  getViewHods,
+  getViewStudents,
+  getViewSupervisors
 };
-
-=======
-  getActivityLogs
-};
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae

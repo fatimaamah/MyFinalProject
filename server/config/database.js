@@ -1,12 +1,11 @@
-<<<<<<< HEAD
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 
-// Ensure /data directory exists
+// Ensure /data directory exists - FIXED THE TYPO
 const dbDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir);
+  fs.mkdirSync(dbDir, { recursive: true });
 }
 
 // Initialize SQLite database
@@ -23,6 +22,8 @@ db.prepare(`
     role TEXT NOT NULL,
     department TEXT,
     level TEXT,
+    registration_number TEXT,
+    is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   )
@@ -64,6 +65,7 @@ db.prepare(`
     file_url TEXT,
     file_name TEXT,
     file_size INTEGER,
+    mime_type TEXT,
     status TEXT DEFAULT 'pending',
     version INTEGER DEFAULT 1,
     submitted_at TEXT DEFAULT (datetime('now')),
@@ -71,6 +73,16 @@ db.prepare(`
     FOREIGN KEY (student_id) REFERENCES users(id),
     FOREIGN KEY (supervisor_id) REFERENCES users(id)
   )
+`).run();
+
+// Trigger to auto-update reports updated_at
+db.prepare(`
+  CREATE TRIGGER IF NOT EXISTS reports_updated_at
+  AFTER UPDATE ON reports
+  FOR EACH ROW
+  BEGIN
+    UPDATE reports SET updated_at = datetime('now') WHERE id = OLD.id;
+  END;
 `).run();
 
 // === FEEDBACK TABLE ===
@@ -114,21 +126,25 @@ db.prepare(`
   )
 `).run();
 
+// Create indexes for better performance
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_student_id ON reports(student_id)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_supervisor_id ON reports(supervisor_id)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_feedback_report_id ON feedback(report_id)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_assignments_student_id ON student_supervisor_assignments(student_id)`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_assignments_supervisor_id ON student_supervisor_assignments(supervisor_id)`).run();
+
 console.log('✅ SQLite database initialized successfully.');
+console.log(`📁 Database location: ${dbFile}`);
 
-module.exports = db;
-=======
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
-
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+// Test the database connection
+try {
+  const test = db.prepare('SELECT 1 as test').get();
+  console.log('✅ Database connection test passed');
+} catch (error) {
+  console.error('❌ Database connection test failed:', error.message);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-module.exports = { supabase };
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
+module.exports = db;

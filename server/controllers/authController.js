@@ -1,59 +1,36 @@
 const bcrypt = require('bcryptjs');
-<<<<<<< HEAD
 const db = require('../config/database');
-const { logActivity } = require('../utils/logger');
-
-const getLogin = (req, res) => {
-  if (req.session.user) return res.redirect('/dashboard');
-  res.render('auth/login', { 
-    error: null,
-    success: null 
-  });
-=======
-const { supabase } = require('../config/database');
 const { logActivity } = require('../utils/logger');
 
 const getLogin = (req, res) => {
   if (req.session.user) {
     return res.redirect('/dashboard');
   }
-  res.render('auth/login', { error: null });
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
+  
+  const messages = {
+    error: req.flash('error')?.[0] || null,
+    success: req.flash('success')?.[0] || null
+  };
+  
+  res.render('auth/login', messages);
 };
 
 const postLogin = async (req, res) => {
   const { email, password } = req.body;
-<<<<<<< HEAD
+
   try {
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (!user) return res.render('auth/login', { 
-      error: 'Invalid email or password', 
-      success: null 
-    });
+    const user = db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(email);
+    
+    if (!user) {
+      req.flash('error', 'Invalid email or password');
+      return res.redirect('/auth/login');
+    }
 
     const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) return res.render('auth/login', { 
-      error: 'Invalid email or password', 
-      success: null 
-    });
-=======
-
-  try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (error || !user) {
-      return res.render('auth/login', { error: 'Invalid email or password' });
+    if (!isValid) {
+      req.flash('error', 'Invalid email or password');
+      return res.redirect('/auth/login');
     }
-
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    if (!isValidPassword) {
-      return res.render('auth/login', { error: 'Invalid email or password' });
-    }
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
 
     req.session.user = {
       id: user.id,
@@ -61,46 +38,41 @@ const postLogin = async (req, res) => {
       full_name: user.full_name,
       role: user.role,
       department: user.department,
-<<<<<<< HEAD
       level: user.level,
       registration_number: user.registration_number
     };
 
     await logActivity(user.id, 'Login', 'user', user.id);
+    
+    req.flash('success', `Welcome back, ${user.full_name}!`);
     res.redirect('/dashboard');
+    
   } catch (err) {
-    console.error(err);
-    res.render('auth/login', { 
-      error: 'An error occurred. Please try again.', 
-      success: null 
-    });
-=======
-      level: user.level
-    };
-
-    await logActivity(user.id, 'Login', 'user', user.id);
-
-    res.redirect('/dashboard');
-  } catch (error) {
-    console.error('Login error:', error);
-    res.render('auth/login', { error: 'An error occurred. Please try again.' });
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
+    console.error('Login error:', err);
+    req.flash('error', 'An error occurred. Please try again.');
+    res.redirect('/auth/login');
   }
 };
 
 const getRegister = (req, res) => {
-<<<<<<< HEAD
-  if (req.session.user) return res.redirect('/dashboard');
-  res.render('auth/register', { 
-    error: null,
-    success: null,
-    full_name: '',
-    email: '',
-    registration_number: '',
-    level: '',
-    department: '',
-    phone: ''
-  });
+  if (req.session.user) {
+    return res.redirect('/dashboard');
+  }
+  
+  const messages = {
+    error: req.flash('error')?.[0] || null,
+    success: req.flash('success')?.[0] || null,
+    formData: {
+      full_name: '',
+      email: '',
+      registration_number: '',
+      level: '',
+      department: '',
+      phone: ''
+    }
+  };
+  
+  res.render('auth/register', messages);
 };
 
 const postRegister = async (req, res) => {
@@ -112,78 +84,49 @@ const postRegister = async (req, res) => {
     department, 
     level, 
     registration_number,
-    phone,
-    otp,
-    terms 
+    phone
   } = req.body;
-
-  // Prepare response data
-  const responseData = {
-    error: null,
-    success: null,
-    full_name: full_name || '',
-    email: email || '',
-    registration_number: registration_number || '',
-    level: level || '',
-    department: department || '',
-    phone: phone || ''
-  };
 
   try {
     // Validation checks
     if (password !== confirm_password) {
-      responseData.error = 'Passwords do not match';
-      return res.render('auth/register', responseData);
+      req.flash('error', 'Passwords do not match');
+      return res.redirect('/auth/register');
     }
 
     if (password.length < 6) {
-      responseData.error = 'Password must be at least 6 characters long';
-      return res.render('auth/register', responseData);
-    }
-
-    if (!terms) {
-      responseData.error = 'You must agree to the terms and conditions';
-      return res.render('auth/register', responseData);
-    }
-
-    if (!otp) {
-      responseData.error = 'Verification code is required';
-      return res.render('auth/register', responseData);
+      req.flash('error', 'Password must be at least 6 characters long');
+      return res.redirect('/auth/register');
     }
 
     // Check if email already exists
     const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existingEmail) {
-      responseData.error = 'Email already registered';
-      return res.render('auth/register', responseData);
+      req.flash('error', 'Email already registered');
+      return res.redirect('/auth/register');
     }
 
     // Check if registration number already exists
-    let existingRegNo = null;
-    try {
-      existingRegNo = db.prepare('SELECT id FROM users WHERE registration_number = ?').get(registration_number);
-    } catch (e) {
-      // Column might not exist yet, ignore this check
-      console.log('Registration number check skipped - column may not exist');
+    if (registration_number) {
+      const existingRegNo = db.prepare('SELECT id FROM users WHERE registration_number = ?').get(registration_number);
+      if (existingRegNo) {
+        req.flash('error', 'Registration number already exists');
+        return res.redirect('/auth/register');
+      }
     }
 
-    if (existingRegNo) {
-      responseData.error = 'Registration number already exists';
-      return res.render('auth/register', responseData);
-    }
-
-    // Validate registration number format (basic check)
-    if (!registration_number || registration_number.trim().length < 3) {
-      responseData.error = 'Valid registration number is required';
-      return res.render('auth/register', responseData);
+    // Validate required fields
+    if (!full_name || !email || !department || !level) {
+      req.flash('error', 'All required fields must be filled');
+      return res.redirect('/auth/register');
     }
 
     // Hash password and create user
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Try to insert with registration_number and phone, fallback to basic insert if columns don't exist
     let result;
     try {
+      // Try to insert with all fields
       const stmt = db.prepare(`
         INSERT INTO users (email, password_hash, full_name, role, department, level, registration_number, phone)
         VALUES (?, ?, ?, 'student', ?, ?, ?, ?)
@@ -195,12 +138,12 @@ const postRegister = async (req, res) => {
         full_name, 
         department, 
         level, 
-        registration_number,
+        registration_number || null,
         phone || null
       );
     } catch (dbError) {
-      // Fallback: insert without the new columns
-      console.log('Fallback: inserting without registration_number and phone');
+      // Fallback: insert without optional columns if they don't exist
+      console.log('Fallback: inserting without optional columns');
       const stmt = db.prepare(`
         INSERT INTO users (email, password_hash, full_name, role, department, level)
         VALUES (?, ?, ?, 'student', ?, ?)
@@ -239,7 +182,7 @@ const postRegister = async (req, res) => {
       }
     );
 
-    // Redirect to dashboard
+    req.flash('success', 'Account created successfully! Welcome to the system.');
     res.redirect('/dashboard');
 
   } catch (err) {
@@ -256,73 +199,36 @@ const postRegister = async (req, res) => {
       }
     }
 
-    responseData.error = errorMessage;
-    res.render('auth/register', responseData);
-=======
-  if (req.session.user) {
-    return res.redirect('/dashboard');
-  }
-  res.render('auth/register', { error: null });
-};
-
-const postRegister = async (req, res) => {
-  const { email, password, full_name, department, level } = req.body;
-
-  try {
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (existingUser) {
-      return res.render('auth/register', { error: 'Email already registered' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert({
-        email,
-        password_hash: hashedPassword,
-        full_name,
-        role: 'student',
-        department,
-        level
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return res.render('auth/register', { error: 'Failed to create account' });
-    }
-
-    await logActivity(newUser.id, 'Account Created', 'user', newUser.id);
-
-    req.session.user = {
-      id: newUser.id,
-      email: newUser.email,
-      full_name: newUser.full_name,
-      role: newUser.role,
-      department: newUser.department,
-      level: newUser.level
-    };
-
-    res.redirect('/dashboard');
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.render('auth/register', { error: 'An error occurred. Please try again.' });
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
+    req.flash('error', errorMessage);
+    
+    // Pass form data back to maintain user input
+    req.flash('formData', {
+      full_name: full_name || '',
+      email: email || '',
+      registration_number: registration_number || '',
+      level: level || '',
+      department: department || '',
+      phone: phone || ''
+    });
+    
+    res.redirect('/auth/register');
   }
 };
 
 const logout = (req, res) => {
-  req.session.destroy();
-  res.redirect('/auth/login');
+  if (req.session.user) {
+    logActivity(req.session.user.id, 'Logout', 'user', req.session.user.id)
+      .catch(err => console.error('Logout activity log error:', err));
+  }
+  
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Session destroy error:', err);
+    }
+    res.redirect('/auth/login');
+  });
 };
 
-<<<<<<< HEAD
 module.exports = { 
   getLogin, 
   postLogin, 
@@ -330,12 +236,3 @@ module.exports = {
   postRegister, 
   logout 
 };
-=======
-module.exports = {
-  getLogin,
-  postLogin,
-  getRegister,
-  postRegister,
-  logout
-};
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae

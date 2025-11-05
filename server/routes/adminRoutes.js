@@ -5,7 +5,6 @@ const adminController = require('../controllers/adminController');
 
 router.use(requireRole('general_admin'));
 
-<<<<<<< HEAD
 // Dashboard
 router.get('/dashboard', adminController.getDashboard);
 
@@ -24,19 +23,20 @@ router.get('/view-coordinators', adminController.getViewCoordinators);
 // View HODs
 router.get('/view-hods', adminController.getViewHods);
 
-// Activity Logs
-router.get('/activity-logs', adminController.getActivityLogs);
+// View Students
 router.get('/view-students', adminController.getViewStudents);
+
+// View Supervisors
 router.get('/view-supervisors', adminController.getViewSupervisors);
 
-=======
-router.get('/dashboard', adminController.getDashboard);
+// Activity Logs
+router.get('/activity-logs', adminController.getActivityLogs);
+
+// Coordinator Management (from the second version)
 router.get('/add-coordinator', adminController.getAddCoordinator);
 router.post('/add-coordinator', adminController.postAddCoordinator);
 router.get('/edit-coordinator/:id', adminController.getEditCoordinator);
 router.post('/edit-coordinator/:id', adminController.postEditCoordinator);
 router.post('/delete-coordinator/:id', adminController.deleteCoordinator);
-router.get('/activity-logs', adminController.getActivityLogs);
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
 
 module.exports = router;

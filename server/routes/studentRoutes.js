@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-<<<<<<< HEAD
 const fs = require('fs');
 const { requireRole } = require('../middleware/auth');
 const studentController = require('../controllers/studentController');
@@ -20,42 +19,10 @@ const storage = multer.diskStorage({
   }
 });
 
-// Accept any file, max 50MB
+// File filter and limits
 const upload = multer({ 
   storage, 
-  limits: { fileSize: 50 * 1024 * 1024 } 
-});
-
-// Protect all routes — only students
-router.use(requireRole('student'));
-
-// Routes
-router.get('/dashboard', studentController.getDashboard);
-router.get('/upload-report', studentController.getUploadReport);
-router.post('/upload-report', upload.single('report'), studentController.postUploadReport);
-
-router.get('/report/:id', studentController.getReport);
-router.get('/reupload/:id', studentController.getReuploadReport);
-router.post('/reupload/:id', upload.single('report'), studentController.postReuploadReport);
-
-module.exports = router;
-=======
-const { requireRole } = require('../middleware/auth');
-const studentController = require('../controllers/studentController');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /pdf|doc|docx|jpg|jpeg|png/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -67,14 +34,16 @@ const upload = multer({
   }
 });
 
+// Protect all routes — only students
 router.use(requireRole('student'));
 
+// Routes
 router.get('/dashboard', studentController.getDashboard);
 router.get('/upload-report', studentController.getUploadReport);
 router.post('/upload-report', upload.single('report'), studentController.postUploadReport);
+
 router.get('/report/:id', studentController.getReportDetails);
 router.get('/reupload/:id', studentController.getReuploadReport);
 router.post('/reupload/:id', upload.single('report'), studentController.postReuploadReport);
 
 module.exports = router;
->>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
