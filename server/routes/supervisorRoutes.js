@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireRole } = require('../middleware/auth');
 const supervisorController = require('../controllers/supervisorController');
+<<<<<<< HEAD
 const fileController = require('../controllers/fileController'); // Import file controller
 
 // All routes require supervisor role
@@ -50,3 +51,15 @@ router.get('/files/info/:id', fileController.getFileInfo);
 router.get('/files/preview/:id', fileController.getFilePreview);
 
 module.exports = router;
+=======
+
+router.use(requireRole('supervisor'));
+
+router.get('/dashboard', supervisorController.getDashboard);
+router.get('/student/:studentId', supervisorController.getStudentReports);
+router.get('/report/:id', supervisorController.getReportDetails);
+router.post('/feedback', supervisorController.postFeedback);
+router.post('/move-to-next-stage', supervisorController.moveToNextStage);
+
+module.exports = router;
+>>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae

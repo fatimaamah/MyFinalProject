@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <div class="container-fluid">
   <!-- Header Section -->
   <div class="row mb-4">
@@ -209,10 +210,90 @@
                       <p class="mb-0"><%= item.comment %></p>
                     </div>
                   </div>
+=======
+<%
+  const title = 'Review Report';
+  const body = `
+    <div class="row mb-4">
+      <div class="col-12">
+        <a href="/supervisor/student/${report.student_id}" class="btn btn-outline-secondary mb-3">
+          <i class="bi bi-arrow-left me-1"></i>Back to Student
+        </a>
+        <h2><i class="bi bi-file-earmark-text me-2"></i>${report.title}</h2>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-8">
+        <div class="card mb-3">
+          <div class="card-header bg-white">
+            <h5 class="mb-0">Report Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-2">
+              <div class="col-md-4"><strong>Student:</strong></div>
+              <div class="col-md-8">${report.student.full_name}</div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-4"><strong>Stage:</strong></div>
+              <div class="col-md-8"><span class="badge bg-info">${report.report_stage.replace('_', ' ').toUpperCase()}</span></div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-4"><strong>Status:</strong></div>
+              <div class="col-md-8">
+                <% if (report.status === 'pending') { %>
+                  <span class="badge bg-warning text-dark">Pending Review</span>
+                <% } else if (report.status === 'approved') { %>
+                  <span class="badge bg-success">Approved</span>
+                <% } else if (report.status === 'rejected') { %>
+                  <span class="badge bg-danger">Rejected</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">Feedback Given</span>
+                <% } %>
+              </div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-4"><strong>Version:</strong></div>
+              <div class="col-md-8">v${report.version}</div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-4"><strong>File:</strong></div>
+              <div class="col-md-8">${report.file_name}</div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-4"><strong>Submitted:</strong></div>
+              <div class="col-md-8">${new Date(report.submitted_at).toLocaleString()}</div>
+            </div>
+            <div class="row">
+              <div class="col-12 mt-3">
+                <a href="${report.file_url}" class="btn btn-primary" download>
+                  <i class="bi bi-download me-1"></i>Download Report
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <% if (feedback && feedback.length > 0) { %>
+          <div class="card">
+            <div class="card-header bg-white">
+              <h5 class="mb-0">Feedback History</h5>
+            </div>
+            <div class="card-body">
+              <% feedback.forEach(fb => { %>
+                <div class="mb-3 p-3 border-start border-4 border-primary bg-light">
+                  <div class="d-flex justify-content-between mb-2">
+                    <strong>You</strong>
+                    <small class="text-muted">${new Date(fb.created_at).toLocaleString()}</small>
+                  </div>
+                  <p class="mb-2">${fb.comment}</p>
+                  <span class="badge bg-secondary">${fb.action_taken.replace('_', ' ').toUpperCase()}</span>
+>>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
                 </div>
               <% }); %>
             </div>
           </div>
+<<<<<<< HEAD
         </div>
       <% } %>
     </div>
@@ -813,3 +894,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 });
 </script>
+=======
+        <% } %>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card mb-3">
+          <div class="card-header bg-white">
+            <h5 class="mb-0">Provide Feedback</h5>
+          </div>
+          <div class="card-body">
+            <form action="/supervisor/feedback" method="POST">
+              <input type="hidden" name="reportId" value="${report.id}">
+              <div class="mb-3">
+                <label class="form-label">Feedback</label>
+                <textarea class="form-control" name="comment" rows="5" required></textarea>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Action</label>
+                <select class="form-select" name="action" required>
+                  <option value="commented">Comment Only</option>
+                  <option value="request_reupload">Request Reupload</option>
+                  <option value="approved">Approve</option>
+                  <option value="rejected">Reject</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-send me-1"></i>Submit Feedback
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <% if (report.report_stage !== 'final' && report.status === 'approved') { %>
+          <div class="card">
+            <div class="card-body">
+              <form action="/supervisor/move-to-next-stage" method="POST">
+                <input type="hidden" name="reportId" value="${report.id}">
+                <button type="submit" class="btn btn-success w-100" onclick="return confirm('Move to next stage?')">
+                  <i class="bi bi-arrow-right-circle me-1"></i>Move to Next Stage
+                </button>
+              </form>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  `;
+%>
+<%- include('../layouts/main', { title, body, user }) %>
+>>>>>>> 0d0ed4a9a4cd455f44f4517cd207ea505dcef7ae
